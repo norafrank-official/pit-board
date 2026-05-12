@@ -1,0 +1,55 @@
+# GitHub Repository Description
+
+## Short Description (for repo header)
+Real-time F1 race intelligence dashboard. Live telemetry, pit strategy tracking, off-weekend analytics.
+
+## Long Description (for "About" section)
+
+Pit Board is a full-stack real-time dashboard for Formula 1 data enthusiasts. It aggregates live race telemetry, standings, pit strategies, and comprehensive off-weekend analytics into a single, minimalist interface.
+
+**Key Features:**
+- Live race tracking with real-time position updates
+- Championship battle cards (P1 vs P2 points race)
+- Circuit DNA analysis (speed, tire wear, overtaking, downforce)
+- Weather forecasting for race weekends
+- Driver form tracking (last 5 races per driver)
+- Pit strategy and team radio feeds
+- Off-weekend deep-dive analysis
+
+**Tech Stack:**
+- Backend: Flask + Flask-SocketIO (Python)
+- Frontend: Vanilla JavaScript + Leaflet.js
+- Real-time: WebSocket (Socket.IO)
+- Data: OpenF1 API, Ergast API, Open-Meteo API
+
+**Live Every Race Weekend**
+
+Built for power users, engineers, and data-driven F1 fans.
+
+---
+
+## Topics (Tags)
+pit-board
+f1
+formula-1
+real-time
+websocket
+flask
+javascript
+data-visualization
+api
+dashboard
+telemetry
+race-engineering
+
+---
+
+## Website URL
+Leave blank or add deployment link if you host it
+
+---
+
+## Display Options
+- ☑ Include in GitHub Trending (yes)
+- ☑ Use GitHub Discussions (yes)
+- ☑ Show GitHub Sponsors button (optional)

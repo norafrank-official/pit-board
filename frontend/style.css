@@ -1,0 +1,2030 @@
+/* ======================================================
+   PIT BOARD — Real-time F1 Race Intelligence Dashboard
+   Minimalist, data-dense, built for live race analysis.
+   ====================================================== */
+
+:root {
+    --f1-red:     #e10600;
+    --bg:         #0d0d0d;
+    --bg-panel:   #141418;
+    --bg-row:     #1a1a20;
+    --bg-hover:   #22222a;
+    --border:     #2a2a35;
+    --border-dim: #1e1e28;
+    --text:       #f0f0f4;
+    --text-muted: #7a7a8a;
+    --text-dim:   #4a4a5a;
+    --cyan:       #00d4ff;
+    --green:      #00cc44;
+    --amber:      #ffaa00;
+    --purple:     #c060ff;
+    --header-h:   56px;
+    --alert-h:    0px;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Titillium Web', 'Arial Narrow', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    font-size: 13px;
+    line-height: 1.3;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ======================================================
+   HEADER
+   ====================================================== */
+.command-header {
+    height: var(--header-h);
+    background: #0a0a0e;
+    border-bottom: 2px solid var(--f1-red);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.logo { display: flex; align-items: center; gap: 10px; }
+
+.f1-logo {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--f1-red);
+    font-style: italic;
+    letter-spacing: -3px;
+    line-height: 1;
+}
+
+.mission-text {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.header-center { flex: 1; display: flex; justify-content: center; }
+
+.session-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    cursor: default;
+}
+
+.session-live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    margin-bottom: 2px;
+    transition: background 0.3s;
+}
+.session-live-dot.live-dot-active {
+    background: var(--f1-red);
+    box-shadow: 0 0 8px var(--f1-red);
+    animation: pulse-dot 1.2s infinite;
+}
+
+.session-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--f1-red);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.session-circuit {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.header-right { display: flex; align-items: center; gap: 18px; }
+
+.clock-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 4px;
+}
+
+.clock-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.clock-label { font-size: 0.5rem; font-weight: 700; color: var(--text-dim); letter-spacing: 1px; }
+.clock-value { font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+.clock-divider { width: 1px; height: 22px; background: var(--border); }
+
+.status-indicators { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+
+.status-live {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--f1-red);
+    letter-spacing: 1px;
+    animation: pulse-text 1.5s infinite;
+}
+
+.status-signal {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ======================================================
+   RACE ALERT BANNER
+   ====================================================== */
+.race-alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 50;
+    animation: alert-slide 0.3s ease;
+}
+.race-alert.hidden { display: none; }
+
+.alert-safety-car { background: #2a1f00; border-bottom: 2px solid var(--amber); color: var(--amber); }
+.alert-vsc        { background: #2a1f00; border-bottom: 2px solid #ffdd00; color: #ffdd00; }
+.alert-red-flag   { background: #250000; border-bottom: 2px solid var(--f1-red); color: #ff4444; animation: alert-slide 0.3s ease, blink 0.6s infinite; }
+.alert-yellow     { background: #201a00; border-bottom: 2px solid #ffd700; color: #ffd700; }
+.alert-drs        { background: #00100a; border-bottom: 2px solid var(--green); color: var(--green); }
+
+.alert-icon { font-size: 1.1rem; }
+.alert-text { flex: 1; }
+.alert-dismiss {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: opacity 0.15s;
+}
+.alert-dismiss:hover { opacity: 1; }
+
+/* ======================================================
+   MISSION CONTROL WRAPPER
+   ====================================================== */
+.mission-control {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ======================================================
+   MAIN GRID  — left | center | right  /  bottom
+   ====================================================== */
+.main-grid {
+    display: grid;
+    grid-template-columns: 265px 1fr 255px;
+    grid-template-rows: 1fr 210px;
+    gap: 5px;
+    flex: 1;
+    padding: 5px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ======================================================
+   PANEL HEADER
+   ====================================================== */
+.panel-header {
+    background: #0f0f14;
+    border-bottom: 1px solid var(--border);
+    border-top: 2px solid var(--f1-red);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.panel-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.panel-title-sm {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.panel-status-badge {
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.feed-live-badge {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--f1-red);
+    animation: pulse-text 1.5s infinite;
+}
+
+/* ======================================================
+   LEFT PANEL
+   ====================================================== */
+.left-panel {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    overflow-y: auto;
+    gap: 0;
+    border-top: 2px solid var(--f1-red);
+}
+
+/* Race Cards */
+.race-card {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-dim);
+    flex-shrink: 0;
+}
+.next-card { background: rgba(255,255,255,0.015); }
+
+.race-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.race-card-badge {
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+.current-badge { color: var(--f1-red); }
+.next-badge { color: var(--text-dim); }
+
+.race-flag { font-size: 1.1rem; }
+
+.race-card-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+
+.race-card-detail {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.race-card-session {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.race-card-session.session-live {
+    color: var(--f1-red);
+    animation: pulse-text 1.5s infinite;
+}
+
+.race-time-row {
+    display: flex;
+    gap: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+.ist-label { color: var(--text-muted); }
+
+/* Countdown */
+.countdown {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+}
+.countdown-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid var(--f1-red);
+    padding: 4px 6px;
+    border-radius: 3px;
+    min-width: 36px;
+}
+.countdown-val {
+    font-size: 1rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+.countdown-unit {
+    font-size: 0.45rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+}
+.countdown-sep {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    align-self: flex-start;
+    padding-top: 2px;
+}
+
+/* Weekend Schedule */
+.schedule-block {
+    border-bottom: 1px solid var(--border-dim);
+    flex-shrink: 0;
+}
+
+.block-header {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 6px 12px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.02);
+    border-top: 1px solid var(--border-dim);
+}
+
+.weather-source {
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--green);
+}
+
+.schedule-list { padding: 4px 0; }
+.schedule-loading { padding: 8px 12px; font-size: 0.7rem; color: var(--text-dim); }
+
+.schedule-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto 18px;
+    gap: 4px;
+    padding: 4px 12px;
+    align-items: center;
+    border-left: 2px solid transparent;
+}
+.schedule-row.status-live {
+    border-left-color: var(--f1-red);
+    background: rgba(225,6,0,0.04);
+}
+.schedule-row.status-completed { opacity: 0.5; }
+
+.sched-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sched-time { font-size: 0.58rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.sched-ist  { font-size: 0.55rem; color: var(--text-dim); white-space: nowrap; }
+
+.sched-status {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-align: center;
+}
+.sched-live { color: var(--f1-red); animation: pulse-text 1.2s infinite; }
+.sched-done { color: var(--green); }
+.sched-upcoming { color: var(--text-dim); }
+
+/* Map */
+.map-container {
+    flex: 1;
+    min-height: 110px;
+    border-top: 1px solid var(--border-dim);
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.map-pin { font-size: 20px; filter: drop-shadow(0 0 4px #e10600); }
+
+/* Weather Block */
+.weather-block {
+    flex-shrink: 0;
+    padding-bottom: 4px;
+}
+
+.weather-main-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px 4px;
+}
+
+.weather-icon-temp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.weather-icon { font-size: 1.6rem; line-height: 1; }
+.weather-temp {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.weather-cond-col { display: flex; flex-direction: column; gap: 2px; }
+.weather-cond { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.weather-feels { font-size: 0.6rem; color: var(--text-muted); font-weight: 600; }
+
+.weather-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3px;
+    padding: 0 8px 6px;
+}
+
+.wx-metric {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 6px;
+    background: var(--bg);
+    border-left: 2px solid var(--f1-red);
+    border-radius: 2px;
+}
+.wx-label {
+    font-size: 0.48rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+.wx-value { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ======================================================
+   TIMING PANEL
+   ====================================================== */
+.timing-panel {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.timing-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lap-counter {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 9-col grid: P | △ | # | DRIVER | TIME | GAP | INT | TYRE | LAP */
+.timing-header-row {
+    display: grid;
+    grid-template-columns: 24px 22px 28px 1fr 72px 60px 60px 32px 30px;
+    gap: 3px;
+    padding: 3px 6px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.timing-header-row > span {
+    font-size: 0.52rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+.th-pos, .th-num, .th-lap, .th-delta { text-align: center; }
+.th-time, .th-gap, .th-int { text-align: right; }
+.th-tyre { text-align: center; }
+
+.timing-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 2px;
+    background: var(--bg);
+    min-height: 0;
+}
+
+.timing-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-weight: 600;
+}
+
+.timing-row {
+    display: grid;
+    grid-template-columns: 24px 22px 28px 1fr 72px 60px 60px 32px 30px;
+    gap: 3px;
+    padding: 4px 6px;
+    background: var(--bg-row);
+    border-left: 3px solid var(--team-color, transparent);
+    border-radius: 2px;
+    align-items: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+/* Position Delta Badge */
+.pos-delta {
+    font-size: 0.52rem;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.pos-delta.delta-up   { color: var(--green); }
+.pos-delta.delta-down { color: var(--f1-red); }
+
+.timing-row:hover { background: var(--bg-hover); }
+.timing-row.leader { background: rgba(225,6,0,0.05); }
+.timing-row.fastest-lap { background: rgba(192,96,255,0.06); }
+
+.timing-row.flash {
+    animation: row-flash 0.5s ease;
+}
+
+.pos {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.drv-num {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-align: center;
+    border-radius: 3px;
+    border: 1px solid;
+    padding: 1px 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.drv-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.15;
+}
+.drv-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.drv-team {
+    font-size: 0.52rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.timing-time {
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+.timing-time.purple { color: var(--purple); }
+
+.timing-gap, .timing-int {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+.timing-int.int-leader {
+    font-size: 0.55rem;
+    color: var(--f1-red);
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.tyre-cell { text-align: center; }
+.tyre-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid;
+    font-size: 0.52rem;
+    font-weight: 700;
+}
+
+.lap-cell {
+    font-size: 0.58rem;
+    color: var(--text-dim);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================
+   CHAMPIONSHIP PANEL
+   ====================================================== */
+.standings-panel {
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.standings-tabs {
+    display: flex;
+    gap: 2px;
+}
+
+.tab-btn {
+    font-family: 'Titillium Web', sans-serif;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+}
+.tab-btn.active { background: var(--f1-red); color: #fff; border-color: var(--f1-red); }
+.tab-btn:hover:not(.active) { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+.standings-container {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    padding: 4px;
+    min-height: 0;
+}
+
+.standings-section.hidden { display: none; }
+
+.standings-list, .calendar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 8px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-align: center;
+}
+
+.standing-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    border-left: 3px solid transparent;
+    transition: background 0.12s;
+    position: relative;
+    overflow: hidden;
+}
+.standing-item:hover { background: var(--bg-hover); }
+
+.st-pos {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.st-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.st-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.st-team {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+.st-meta { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.st-pts { font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.st-wins { font-size: 0.55rem; color: var(--text-dim); font-weight: 600; }
+
+.pts-bar-bg {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.03);
+}
+.pts-bar {
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+/* Calendar */
+.cal-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto 16px;
+    gap: 4px;
+    padding: 5px 6px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    align-items: center;
+    border-left: 2px solid transparent;
+}
+.cal-item:hover { background: var(--bg-hover); }
+.cal-done { opacity: 0.45; }
+
+.cal-round {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-align: center;
+}
+.cal-info { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cal-flag { font-size: 0.9rem; flex-shrink: 0; }
+.cal-names { display: flex; flex-direction: column; min-width: 0; }
+.cal-name {
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cal-loc {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cal-date { font-size: 0.58rem; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cal-status { font-size: 0.65rem; font-weight: 700; text-align: center; }
+.cal-status-done { color: var(--green); }
+.cal-status-upcoming { color: var(--text-dim); }
+
+/* ======================================================
+   BOTTOM PANEL
+   ====================================================== */
+.bottom-panel {
+    grid-column: 2 / -1;
+    grid-row: 2;
+}
+
+.quad-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1.4fr;
+    height: 100%;
+}
+
+.quad-section {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-dim);
+    overflow: hidden;
+    min-height: 0;
+}
+.quad-section:last-child { border-right: none; }
+.quad-section .panel-header { border-top: 2px solid var(--border); }
+.battle-section .panel-header { border-top-color: var(--f1-red); }
+
+/* Battle Tracker */
+.battle-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg);
+}
+
+.battle-card {
+    background: var(--bg-row);
+    border-radius: 3px;
+    padding: 5px 7px;
+    border-left: 2px solid var(--f1-red);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.battle-driver {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.battle-pos { font-size: 0.7rem; font-weight: 700; width: 24px; }
+.battle-name { font-size: 0.78rem; font-weight: 700; flex: 1; }
+.battle-compound { flex-shrink: 0; }
+
+.battle-gap-bar {
+    position: relative;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 1px 0;
+    overflow: visible;
+}
+.battle-gap-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--f1-red), var(--amber));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+.battle-gap-val {
+    position: absolute;
+    right: 0;
+    top: -10px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.battle-gap-val.gap-hot { color: var(--f1-red); }
+
+.drs-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    transition: all 0.3s;
+}
+.drs-badge.drs-active {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,204,68,0.08);
+}
+
+/* Pit Stops */
+.pit-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg);
+}
+
+.pit-row {
+    display: grid;
+    grid-template-columns: 1fr 32px 50px;
+    gap: 4px;
+    padding: 4px 6px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    border-left: 2px solid transparent;
+    align-items: center;
+    font-size: 0.7rem;
+}
+.pit-driver { font-weight: 700; text-transform: uppercase; }
+.pit-lap { font-size: 0.62rem; color: var(--text-muted); text-align: center; font-variant-numeric: tabular-nums; }
+.pit-dur { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.pit-fastest { color: var(--purple); }
+
+/* Race Control */
+.control-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg);
+}
+
+.rc-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    border-left: 2px solid var(--border);
+    font-size: 0.68rem;
+}
+.rc-yellow { border-left-color: #ffd700; background: rgba(255,215,0,0.04); }
+.rc-red    { border-left-color: #ff2020; background: rgba(255,32,32,0.05); }
+.rc-green  { border-left-color: var(--green); background: rgba(0,204,68,0.04); }
+.rc-sc     { border-left-color: var(--amber); background: rgba(255,170,0,0.05); }
+
+.rc-icon   { font-size: 0.85rem; flex-shrink: 0; }
+.rc-time   { font-size: 0.58rem; color: var(--text-dim); white-space: nowrap; }
+.rc-msg    { flex: 1; font-weight: 600; font-size: 0.65rem; }
+
+/* Team Radio */
+.radio-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg);
+}
+
+.radio-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    border-left: 2px solid transparent;
+    font-size: 0.68rem;
+}
+.radio-ts  { font-size: 0.58rem; color: var(--text-dim); white-space: nowrap; }
+.radio-drv { font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.radio-msg { flex: 1; color: var(--text-muted); font-weight: 600; font-size: 0.62rem;
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.radio-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: var(--f1-red);
+    border-radius: 50%;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.55rem;
+    flex-shrink: 0;
+    transition: transform 0.12s;
+}
+.radio-play:hover { transform: scale(1.15); }
+
+/* ======================================================
+   LEAFLET OVERRIDES
+   ====================================================== */
+.leaflet-container { background: var(--bg) !important; }
+.leaflet-popup-content-wrapper {
+    background: var(--bg-panel) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 4px !important;
+    font-family: 'Titillium Web', sans-serif !important;
+    font-size: 0.75rem !important;
+}
+.leaflet-popup-tip { background: var(--bg-panel) !important; }
+
+/* ======================================================
+   SCROLLBAR
+   ====================================================== */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ======================================================
+   ANIMATIONS
+   ====================================================== */
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--f1-red); }
+    50% { opacity: 0.4; box-shadow: 0 0 2px var(--f1-red); }
+}
+
+@keyframes pulse-text {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes alert-slide {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes row-flash {
+    0%   { background: rgba(0, 212, 255, 0.15); }
+    100% { background: transparent; }
+}
+
+/* ======================================================
+   HIDDEN UTILITY
+   ====================================================== */
+.hidden { display: none !important; }
+
+/* ======================================================
+   LIVE VIEW — flex wrapper inside timing panel
+   ====================================================== */
+#live-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ======================================================
+   OFF-WEEKEND VIEW — layout
+   ====================================================== */
+#offweek-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.offweek-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ow-left {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-dim);
+    padding: 8px;
+    gap: 8px;
+}
+
+.ow-right {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 8px;
+    gap: 8px;
+}
+
+.ow-race-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* ======================================================
+   PODIUM
+   ====================================================== */
+.podium-row {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: 5px;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
+.podium-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: var(--bg-row);
+    border-radius: 4px;
+    padding: 8px 6px 6px;
+    border-top: 3px solid var(--border);
+    position: relative;
+    gap: 2px;
+}
+
+.podium-card.p1 {
+    border-top-color: #ffd700;
+    background: rgba(255, 215, 0, 0.04);
+    padding-top: 10px;
+}
+
+.podium-card.p2 {
+    border-top-color: #c0c0c0;
+    background: rgba(192, 192, 192, 0.03);
+}
+
+.podium-card.p3 {
+    border-top-color: #cd7f32;
+    background: rgba(205, 127, 50, 0.03);
+}
+
+.podium-trophy {
+    font-size: 1.2rem;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.podium-position {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.podium-position.gold { color: #ffd700; }
+
+.podium-code {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.podium-team {
+    font-size: 0.52rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.podium-time {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.podium-pts {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: #ffd700;
+}
+
+/* ======================================================
+   RACE STATS BAR (fastest lap + entries + date chips)
+   ====================================================== */
+.race-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.stat-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 5px;
+}
+
+.stat-chip-label {
+    font-size: 0.48rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.stat-chip-val {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-chip-val.purple { color: var(--purple); }
+
+.stat-chip-sub {
+    font-size: 0.52rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ======================================================
+   FULL CLASSIFICATION LIST
+   ====================================================== */
+.last-grid-header {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 4px 0 2px;
+    border-bottom: 1px solid var(--border-dim);
+    flex-shrink: 0;
+}
+
+.last-grid-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+}
+
+.lg-row {
+    display: grid;
+    grid-template-columns: 22px 1fr 1fr 36px 48px;
+    gap: 4px;
+    padding: 3px 4px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    align-items: center;
+    border-left: 2px solid transparent;
+    font-size: 0.65rem;
+}
+
+.lg-row.lg-top3 {
+    background: rgba(255,215,0,0.03);
+}
+
+.lg-pos {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.lg-code {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+}
+
+.lg-team {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lg-time {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.lg-pts {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================
+   CIRCUIT PROFILE (ow-right top section)
+   ====================================================== */
+.circuit-profile {
+    background: var(--bg);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.cp-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(225,6,0,0.04);
+    border-bottom: 1px solid var(--border-dim);
+    border-top: 2px solid var(--f1-red);
+}
+
+.cp-flag { font-size: 1.5rem; flex-shrink: 0; }
+
+.cp-name {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cp-location {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.circuit-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border-dim);
+    padding: 1px;
+}
+
+.cs-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 7px 5px;
+    background: var(--bg-row);
+    gap: 2px;
+}
+
+.cs-card.cs-wide {
+    grid-column: span 2;
+}
+
+.cs-val {
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.cs-val.cs-small {
+    font-size: 0.68rem;
+}
+
+.cs-val.cs-muted {
+    color: var(--text-muted);
+}
+
+.cs-val.purple { color: var(--purple); }
+
+.cs-label {
+    font-size: 0.45rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+/* ======================================================
+   SEASON SNAPSHOT
+   ====================================================== */
+.season-snapshot {
+    background: var(--bg);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.ss-header {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.ss-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ss-progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ss-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--f1-red), var(--amber));
+    border-radius: 2px;
+    transition: width 0.6s ease;
+    width: 0%;
+}
+
+.ss-progress-text {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ss-leader-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 8px;
+    background: var(--bg-row);
+    border-radius: 3px;
+    border-left: 3px solid var(--f1-red);
+}
+
+.ss-row {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ss-gap {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.ss-pts { color: var(--text-muted); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
+.ss-wins { color: var(--amber); font-size: 0.6rem; font-weight: 700; }
+.ss-gap-label { color: var(--text-dim); font-size: 0.58rem; }
+.ss-gap-val { color: var(--f1-red); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ======================================================
+   TEAMMATE BATTLES (bottom sec1 in off-weekend mode)
+   ====================================================== */
+.teammate-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg);
+}
+
+.teammate-card {
+    background: var(--bg-row);
+    border-radius: 3px;
+    padding: 5px 7px;
+    border-left: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tm-team {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.tm-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.tm-driver {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    min-width: 30px;
+}
+
+.tm-driver.tm-behind { text-align: right; }
+
+.tm-bars {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tm-bar-wrap {
+    display: flex;
+    align-items: center;
+    height: 5px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.tm-bar {
+    height: 100%;
+    border-radius: 2px;
+    min-width: 4px;
+    transition: width 0.5s ease;
+}
+
+.tm-pts {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 28px;
+    text-align: right;
+}
+
+.tm-pts.tm-behind { text-align: left; }
+
+.tm-gap {
+    font-size: 0.52rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ======================================================
+   CIRCUIT HISTORY (bottom sec2 in off-weekend mode)
+   ====================================================== */
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg);
+}
+
+.history-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 1fr auto;
+    gap: 4px;
+    padding: 4px 6px;
+    background: var(--bg-row);
+    border-radius: 2px;
+    align-items: center;
+    font-size: 0.68rem;
+}
+
+.hist-year {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.hist-driver {
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.hist-team {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hist-time {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ow-circuit-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* ======================================================
+   CIRCUIT DNA BARS
+   ====================================================== */
+.circuit-dna {
+    padding: 8px 10px 6px;
+    border-top: 1px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.dna-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.dna-title {
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.dna-downforce-badge {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px solid;
+    text-transform: uppercase;
+}
+
+.dna-row {
+    display: grid;
+    grid-template-columns: 58px 1fr 30px;
+    align-items: center;
+    gap: 6px;
+}
+
+.dna-label {
+    font-size: 0.5rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.dna-bar-track {
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.dna-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s ease;
+    width: 0%;
+}
+
+.dna-speed      { background: linear-gradient(90deg, #00d4ff, #00aaff); }
+.dna-wear       { background: linear-gradient(90deg, #ffaa00, #ff6600); }
+.dna-overtaking { background: linear-gradient(90deg, #00cc44, #00ff88); }
+
+.dna-val {
+    font-size: 0.5rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    text-align: right;
+    letter-spacing: 0.5px;
+}
+
+/* ======================================================
+   DRIVER FORM GUIDE
+   ====================================================== */
+.form-guide-header {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 6px 0 3px;
+    border-bottom: 1px solid var(--border-dim);
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.form-guide-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 2px;
+}
+
+.form-driver-row {
+    display: grid;
+    grid-template-columns: 30px 18px 1fr auto;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 4px;
+    background: var(--bg-row);
+    border-radius: 2px;
+}
+
+.form-code {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.form-pos-num {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+.form-badges {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.form-result {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid;
+    font-size: 0.58rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.form-no-data {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+}
+
+.form-pts {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ======================================================
+   UTILITY — purple text colour
+   ====================================================== */
+.purple { color: var(--purple); }
+
+/* ======================================================
+   RESPONSIVE — 1400px breakpoint
+   ====================================================== */
+@media (max-width: 1400px) {
+    .main-grid { grid-template-columns: 240px 1fr 230px; }
+    .quad-panel { grid-template-columns: 1fr 1fr 1fr 1.2fr; }
+}
+
+@media (max-width: 1100px) {
+    body { overflow: auto; }
+    .main-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+    }
+    .left-panel { grid-column: 1; grid-row: 1; }
+    .timing-panel { grid-column: 2; grid-row: 1; }
+    .standings-panel { grid-column: 1 / -1; grid-row: 2; }
+    .bottom-panel { grid-column: 1 / -1; grid-row: 3; height: 280px; }
+    .quad-panel { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+}
+
+/* ======================================================
+   TITLE FIGHT CARD (championship panel)
+   ====================================================== */
+.title-fight-card {
+    padding: 7px 10px;
+    background: rgba(225,6,0,0.03);
+    border-bottom: 1px solid var(--border-dim);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tf-label {
+    font-size: 0.47rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.tf-row {
+    display: grid;
+    grid-template-columns: 34px 1fr 58px 22px;
+    gap: 5px;
+    align-items: center;
+    padding: 3px 4px;
+    border-left: 2px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg);
+}
+
+.tf-code {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.tf-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.tf-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.7s ease;
+    width: 0%;
+}
+
+.tf-pts {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.tf-wins {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--amber);
+    white-space: nowrap;
+    text-align: right;
+}
+
+.tf-gap-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    letter-spacing: 0.5px;
+    padding-top: 1px;
+}
+
+/* ======================================================
+   LAP PROGRESS BAR (live timing panel)
+   ====================================================== */
+.lap-progress-wrap {
+    position: relative;
+    height: 18px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border-dim);
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+.lap-progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, rgba(225,6,0,0.5), rgba(255,170,0,0.35));
+    border-right: 2px solid var(--amber);
+    transition: width 1s ease;
+    width: 0%;
+}
+
+.lap-progress-label {
+    position: absolute;
+    right: 8px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    z-index: 1;
+    letter-spacing: 0.5px;
+}
+
+/* ======================================================
+   RACE WEEKEND FORECAST STRIP (left panel)
+   ====================================================== */
+.forecast-block {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-dim);
+    border-bottom: 1px solid var(--border-dim);
+}
+
+.forecast-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border-dim);
+    padding: 1px;
+}
+
+.forecast-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 2px;
+    background: var(--bg-row);
+    text-align: center;
+    transition: background 0.12s;
+}
+
+.forecast-day:hover { background: var(--bg-hover); }
+
+.fc-day {
+    font-size: 0.47rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.fc-date {
+    font-size: 0.42rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.fc-icon { font-size: 0.95rem; line-height: 1; }
+
+.fc-temps {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+
+.fc-max {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-sep {
+    font-size: 0.45rem;
+    color: var(--text-dim);
+}
+
+.fc-min {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-rain {
+    font-size: 0.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pit Board — Live F1 Race Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+<div class="mission-control">
+
+    <!-- ===== HEADER ===== -->
+    <header class="command-header">
+        <div class="logo">
+            <span class="f1-logo">⚡</span>
+            <span class="mission-text">PIT BOARD</span>
+        </div>
+        <div class="header-center">
+            <div class="session-badge">
+                <span class="session-live-dot" id="session-live-dot"></span>
+                <span class="session-name" id="session-name">CONNECTING...</span>
+                <span class="session-circuit" id="session-circuit">—</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="clock-group">
+                <div class="clock-item">
+                    <span class="clock-label">TRACK</span>
+                    <span class="clock-value" id="clock-local">--:--:--</span>
+                </div>
+                <div class="clock-divider"></div>
+                <div class="clock-item">
+                    <span class="clock-label">IST</span>
+                    <span class="clock-value" id="clock-ist">--:--:--</span>
+                </div>
+            </div>
+            <div class="status-indicators">
+                <div class="status-live">● LIVE</div>
+                <div class="status-signal" id="status-signal">CONNECTING</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== RACE ALERT BANNER ===== -->
+    <div class="race-alert hidden" id="race-alert">
+        <span class="alert-icon" id="alert-icon">⚠</span>
+        <span class="alert-text" id="alert-text">SAFETY CAR DEPLOYED</span>
+        <span class="alert-dismiss" onclick="document.getElementById('race-alert').classList.add('hidden')">✕</span>
+    </div>
+
+    <!-- ===== MAIN GRID ===== -->
+    <div class="main-grid">
+
+        <!-- ===== LEFT PANEL ===== -->
+        <div class="panel left-panel">
+            <div class="race-card">
+                <div class="race-card-top">
+                    <span class="race-card-badge current-badge">CURRENT WEEKEND</span>
+                    <span class="race-flag" id="current-flag">🏁</span>
+                </div>
+                <div class="race-card-name" id="current-gp-name">—</div>
+                <div class="race-card-detail" id="current-circuit">—</div>
+                <div class="race-card-session" id="current-session-type">—</div>
+            </div>
+
+            <div class="race-card next-card">
+                <div class="race-card-top">
+                    <span class="race-card-badge next-badge">NEXT RACE</span>
+                    <span class="race-flag" id="next-flag">🏁</span>
+                </div>
+                <div class="race-card-name" id="next-gp-name">—</div>
+                <div class="race-card-detail" id="next-circuit">—</div>
+                <div class="race-time-row">
+                    <span id="next-race-date">—</span>
+                    <span class="ist-label" id="next-race-ist"></span>
+                </div>
+                <div class="countdown">
+                    <div class="countdown-item"><span class="countdown-val" id="cd-days">--</span><span class="countdown-unit">D</span></div>
+                    <div class="countdown-sep">:</div>
+                    <div class="countdown-item"><span class="countdown-val" id="cd-hours">--</span><span class="countdown-unit">H</span></div>
+                    <div class="countdown-sep">:</div>
+                    <div class="countdown-item"><span class="countdown-val" id="cd-mins">--</span><span class="countdown-unit">M</span></div>
+                    <div class="countdown-sep">:</div>
+                    <div class="countdown-item"><span class="countdown-val" id="cd-secs">--</span><span class="countdown-unit">S</span></div>
+                </div>
+            </div>
+
+            <div class="schedule-block">
+                <div class="block-header">WEEKEND SCHEDULE</div>
+                <div class="schedule-list" id="weekend-schedule">
+                    <div class="schedule-loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- 6-day forecast strip -->
+            <div class="forecast-block hidden" id="forecast-block">
+                <div class="block-header">RACE WEEKEND FORECAST
+                    <span class="weather-source" id="forecast-location">—</span>
+                </div>
+                <div class="forecast-strip" id="forecast-strip"></div>
+            </div>
+
+            <div id="track-map" class="map-container"></div>
+
+            <div class="weather-block">
+                <div class="block-header">TRACK CONDITIONS
+                    <span class="weather-source" id="weather-source">—</span>
+                </div>
+                <div class="weather-main-row">
+                    <div class="weather-icon-temp">
+                        <span class="weather-icon" id="weather-icon">—</span>
+                        <span class="weather-temp" id="weather-air-temp">--°C</span>
+                    </div>
+                    <div class="weather-cond-col">
+                        <span class="weather-cond" id="weather-cond">—</span>
+                        <span class="weather-feels" id="weather-feels">Feels like --°C</span>
+                    </div>
+                </div>
+                <div class="weather-grid">
+                    <div class="wx-metric"><span class="wx-label">TRACK</span><span class="wx-value" id="weather-track-temp">--°C</span></div>
+                    <div class="wx-metric"><span class="wx-label">HUMIDITY</span><span class="wx-value" id="weather-humidity">--%</span></div>
+                    <div class="wx-metric"><span class="wx-label">WIND</span><span class="wx-value" id="weather-wind">-- m/s</span></div>
+                    <div class="wx-metric"><span class="wx-label">RAIN</span><span class="wx-value" id="weather-rain">NONE</span></div>
+                    <div class="wx-metric"><span class="wx-label">CLOUDS</span><span class="wx-value" id="weather-cloud">--%</span></div>
+                    <div class="wx-metric"><span class="wx-label">DIR</span><span class="wx-value" id="weather-dir">--°</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== CENTER PANEL — dual-mode ===== -->
+        <div class="panel timing-panel">
+
+            <!-- LIVE TIMING VIEW -->
+            <div id="live-view">
+                <div class="panel-header">
+                    <span class="panel-title">LIVE TIMING</span>
+                    <div class="timing-meta">
+                        <span class="lap-counter" id="lap-counter">—</span>
+                        <div class="panel-status-badge" id="timing-status">REAL-TIME</div>
+                    </div>
+                </div>
+                <!-- Lap progress bar — shown during race sessions only -->
+                <div class="lap-progress-wrap hidden" id="lap-progress-wrap">
+                    <div class="lap-progress-fill" id="lap-progress-fill"></div>
+                    <span class="lap-progress-label" id="lap-progress-label"></span>
+                </div>
+
+                <div class="timing-header-row">
+                    <span class="th-pos">P</span>
+                    <span class="th-delta">△</span>
+                    <span class="th-num">#</span>
+                    <span class="th-driver">DRIVER</span>
+                    <span class="th-time">BEST LAP</span>
+                    <span class="th-gap">GAP</span>
+                    <span class="th-int">INT</span>
+                    <span class="th-tyre">TYRE</span>
+                    <span class="th-lap">LAP</span>
+                </div>
+                <div class="timing-grid" id="timing-grid">
+                    <div class="timing-loading">Connecting to live timing feed...</div>
+                </div>
+            </div>
+
+            <!-- OFF-WEEKEND VIEW -->
+            <div id="offweek-view" class="hidden">
+                <div class="panel-header">
+                    <span class="panel-title" id="ow-panel-title">LAST RACE HIGHLIGHTS</span>
+                    <span class="ow-race-tag" id="ow-race-tag">—</span>
+                </div>
+                <div class="offweek-content">
+
+                    <!-- Podium + Stats + Grid -->
+                    <div class="ow-left">
+                        <div class="podium-row">
+                            <div class="podium-card p2" id="podium-p2">
+                                <div class="podium-position">P2</div>
+                                <div class="podium-code" id="p2-code">—</div>
+                                <div class="podium-team" id="p2-team">—</div>
+                                <div class="podium-time" id="p2-time">—</div>
+                            </div>
+                            <div class="podium-card p1" id="podium-p1">
+                                <div class="podium-trophy">🏆</div>
+                                <div class="podium-position gold">P1</div>
+                                <div class="podium-code" id="p1-code">—</div>
+                                <div class="podium-team" id="p1-team">—</div>
+                                <div class="podium-time" id="p1-time">WINNER</div>
+                                <div class="podium-pts" id="p1-pts">—</div>
+                            </div>
+                            <div class="podium-card p3" id="podium-p3">
+                                <div class="podium-position">P3</div>
+                                <div class="podium-code" id="p3-code">—</div>
+                                <div class="podium-team" id="p3-team">—</div>
+                                <div class="podium-time" id="p3-time">—</div>
+                            </div>
+                        </div>
+
+                        <div class="race-stats-bar">
+                            <div class="stat-chip">
+                                <span class="stat-chip-label">FASTEST LAP</span>
+                                <span class="stat-chip-val purple" id="fastest-drv">—</span>
+                                <span class="stat-chip-sub" id="fastest-time">—</span>
+                            </div>
+                            <div class="stat-chip">
+                                <span class="stat-chip-label">STARTED</span>
+                                <span class="stat-chip-val" id="race-entries">—</span>
+                                <span class="stat-chip-sub">DRIVERS</span>
+                            </div>
+                            <div class="stat-chip">
+                                <span class="stat-chip-label">RACE DATE</span>
+                                <span class="stat-chip-val" id="last-race-date">—</span>
+                                <span class="stat-chip-sub" id="last-race-loc">—</span>
+                            </div>
+                        </div>
+
+                        <div class="last-grid-header">FULL CLASSIFICATION</div>
+                        <div class="last-grid-list" id="last-race-grid"></div>
+
+                        <!-- Driver Form Guide -->
+                        <div class="form-guide-header">DRIVER FORM — LAST 5 RACES</div>
+                        <div class="form-guide-list" id="form-guide-list"></div>
+                    </div>
+
+                    <!-- Next Race Circuit Profile + Season Stats -->
+                    <div class="ow-right">
+                        <div class="circuit-profile">
+                            <div class="cp-header">
+                                <span class="cp-flag" id="cp-flag">🏁</span>
+                                <div>
+                                    <div class="cp-name" id="cp-name">NEXT RACE CIRCUIT</div>
+                                    <div class="cp-location" id="cp-location">—</div>
+                                </div>
+                            </div>
+                            <div class="circuit-stats-grid">
+                                <div class="cs-card">
+                                    <span class="cs-val" id="cs-laps">—</span>
+                                    <span class="cs-label">LAPS</span>
+                                </div>
+                                <div class="cs-card">
+                                    <span class="cs-val" id="cs-length">—</span>
+                                    <span class="cs-label">KM / LAP</span>
+                                </div>
+                                <div class="cs-card">
+                                    <span class="cs-val" id="cs-drs">—</span>
+                                    <span class="cs-label">DRS ZONES</span>
+                                </div>
+                                <div class="cs-card">
+                                    <span class="cs-val" id="cs-corners">—</span>
+                                    <span class="cs-label">CORNERS</span>
+                                </div>
+                                <div class="cs-card cs-wide">
+                                    <span class="cs-val" id="cs-distance">—</span>
+                                    <span class="cs-label">RACE DISTANCE (km)</span>
+                                </div>
+                                <div class="cs-card cs-wide">
+                                    <span class="cs-val cs-small purple" id="cs-record">—</span>
+                                    <span class="cs-label">LAP RECORD</span>
+                                </div>
+                                <div class="cs-card cs-wide">
+                                    <span class="cs-val cs-small cs-muted" id="cs-record-holder">—</span>
+                                    <span class="cs-label">SET BY</span>
+                                </div>
+                                <div class="cs-card">
+                                    <span class="cs-val" id="cs-first-gp">—</span>
+                                    <span class="cs-label">FIRST GP</span>
+                                </div>
+                                <div class="cs-card">
+                                    <span class="cs-val cs-small cs-muted" id="cs-surface">—</span>
+                                    <span class="cs-label">SURFACE</span>
+                                </div>
+                            </div>
+
+                            <!-- Circuit DNA -->
+                            <div class="circuit-dna" id="circuit-dna">
+                                <div class="dna-header">
+                                    <span class="dna-title">CIRCUIT DNA</span>
+                                    <span class="dna-downforce-badge" id="dna-downforce-badge">—</span>
+                                </div>
+                                <div class="dna-row">
+                                    <span class="dna-label">TOP SPEED</span>
+                                    <div class="dna-bar-track">
+                                        <div class="dna-fill dna-speed" id="dna-fill-speed"></div>
+                                    </div>
+                                    <span class="dna-val" id="dna-val-speed">—</span>
+                                </div>
+                                <div class="dna-row">
+                                    <span class="dna-label">TYRE WEAR</span>
+                                    <div class="dna-bar-track">
+                                        <div class="dna-fill dna-wear" id="dna-fill-wear"></div>
+                                    </div>
+                                    <span class="dna-val" id="dna-val-wear">—</span>
+                                </div>
+                                <div class="dna-row">
+                                    <span class="dna-label">OVERTAKING</span>
+                                    <div class="dna-bar-track">
+                                        <div class="dna-fill dna-overtaking" id="dna-fill-overtaking"></div>
+                                    </div>
+                                    <span class="dna-val" id="dna-val-overtaking">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="season-snapshot">
+                            <div class="ss-header">SEASON SNAPSHOT</div>
+                            <div class="ss-progress-wrap">
+                                <div class="ss-progress-bar">
+                                    <div class="ss-fill" id="ss-fill"></div>
+                                </div>
+                                <span class="ss-progress-text" id="ss-progress-text">0 / 0 RACES</span>
+                            </div>
+                            <div class="ss-leader-block">
+                                <div class="ss-row" id="ss-leader">—</div>
+                                <div class="ss-gap" id="ss-gap">—</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===== RIGHT: CHAMPIONSHIP ===== -->
+        <div class="panel standings-panel">
+            <div class="panel-header">
+                <span class="panel-title">CHAMPIONSHIP</span>
+                <div class="standings-tabs">
+                    <button class="tab-btn active" data-tab="drivers">DRV</button>
+                    <button class="tab-btn" data-tab="constructors">TEAM</button>
+                    <button class="tab-btn" data-tab="calendar">CAL</button>
+                </div>
+            </div>
+
+            <!-- Title Fight Battle Card -->
+            <div class="title-fight-card hidden" id="title-fight-card">
+                <div class="tf-label">TITLE FIGHT</div>
+                <div class="tf-row" id="tf-p1-row">
+                    <span class="tf-code" id="tf-p1-code">—</span>
+                    <div class="tf-bar-wrap">
+                        <div class="tf-bar" id="tf-p1-bar"></div>
+                    </div>
+                    <span class="tf-pts" id="tf-p1-pts">—</span>
+                    <span class="tf-wins" id="tf-p1-wins"></span>
+                </div>
+                <div class="tf-row" id="tf-p2-row">
+                    <span class="tf-code" id="tf-p2-code">—</span>
+                    <div class="tf-bar-wrap">
+                        <div class="tf-bar tf-bar-p2" id="tf-p2-bar"></div>
+                    </div>
+                    <span class="tf-pts" id="tf-p2-pts">—</span>
+                    <span class="tf-wins" id="tf-p2-wins"></span>
+                </div>
+                <div class="tf-gap-label" id="tf-gap-label">—</div>
+            </div>
+
+            <div class="standings-container">
+                <div class="standings-section" id="standings-drivers">
+                    <div id="driver-standings" class="standings-list"></div>
+                </div>
+                <div class="standings-section hidden" id="standings-constructors">
+                    <div id="constructor-standings" class="standings-list"></div>
+                </div>
+                <div class="standings-section hidden" id="standings-calendar">
+                    <div id="calendar-list" class="calendar-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== BOTTOM PANEL — 4 sections, content switches by mode ===== -->
+        <div class="panel bottom-panel">
+            <div class="quad-panel">
+
+                <!-- Section 1: Live = Battle Tracker | Off = Teammate Battles -->
+                <div class="quad-section battle-section">
+                    <div class="panel-header">
+                        <span class="panel-title-sm" id="sec1-title">BATTLE TRACKER</span>
+                        <span class="drs-badge" id="drs-badge">DRS</span>
+                    </div>
+                    <div id="sec1-content" class="battle-list">
+                        <div class="empty-state">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Live = Pit Stops | Off = Circuit History -->
+                <div class="quad-section">
+                    <div class="panel-header">
+                        <span class="panel-title-sm" id="sec2-title">PIT STOPS</span>
+                        <span class="ow-circuit-tag hidden" id="history-circuit-tag">—</span>
+                    </div>
+                    <div id="sec2-content" class="pit-list"></div>
+                </div>
+
+                <!-- Section 3: Race Control (same in both modes) -->
+                <div class="quad-section">
+                    <div class="panel-header">
+                        <span class="panel-title-sm">RACE CONTROL</span>
+                        <span class="feed-live-badge" id="rc-live-badge">● LIVE</span>
+                    </div>
+                    <div id="race-control" class="control-log"></div>
+                </div>
+
+                <!-- Section 4: Team Radio (same in both modes) -->
+                <div class="quad-section">
+                    <div class="panel-header">
+                        <span class="panel-title-sm">TEAM RADIO</span>
+                        <span class="feed-live-badge" id="radio-live-badge">● LISTENING</span>
+                    </div>
+                    <div id="team-radio" class="radio-log"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
